@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>U净 · 洗衣机</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+<style>
+*{box-sizing:border-box;letter-spacing:0}body{margin:0;background:#fafafa;color:#202623;font-family:system-ui,"Microsoft YaHei",sans-serif}button{font:inherit;cursor:pointer}button:disabled{opacity:.5;cursor:wait}.rooms>div{border-bottom:1px solid #ecefed}.meter{height:4px;background:#e5e8e6;margin-top:12px;overflow:hidden}.meter span{display:block;height:100%;background:#25815b}.error{color:#b34336}header svg{width:19px;height:19px}#grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:32px}@media(max-width:1000px){#grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){#grid{grid-template-columns:1fr;gap:28px}.top{align-items:flex-start!important}}
+</style>
+</head>
+<body>
+<main class="max-w-6xl mx-auto px-5 sm:px-8 py-8 sm:py-12">
+<header class="top flex items-center justify-between gap-4 border-b border-gray-200 pb-6">
+<div><div class="flex items-center gap-3"><i data-lucide="washing-machine"></i><h1 class="text-2xl font-semibold">U净 · 洗衣机</h1></div><p id="time" class="text-xs text-gray-500 mt-3" aria-live="polite">正在获取状态…</p></div>
+<button id="refresh" class="flex shrink-0 items-center gap-2 border border-gray-300 bg-white hover:bg-gray-50 rounded px-3 py-2 text-sm" title="刷新状态"><i data-lucide="refresh-cw"></i>刷新</button>
+</header>
+<div class="flex flex-wrap justify-between items-center gap-3 py-6"><div id="total" class="text-sm text-gray-600">3 / 4 / 5 / 6 舍</div><div class="flex gap-4 text-xs text-gray-500"><span><span class="inline-block w-2 h-2 bg-emerald-700 mr-1.5"></span>空闲</span><span><span class="inline-block w-2 h-2 bg-gray-300 mr-1.5"></span>非空闲</span></div></div>
+<p id="error" role="alert" class="error text-sm mb-5" hidden></p>
+<div id="grid"></div>
+</main>
+<script>
+const grid=document.querySelector('#grid'),button=document.querySelector('#refresh'),error=document.querySelector('#error');
+let loading=false;
+function element(tag,classes,text){const node=document.createElement(tag);node.className=classes;if(text!==undefined)node.textContent=text;return node}
+function render(data){
+ grid.replaceChildren();
+ let idle=0,total=0;
+ for(const dorm of data.dorms){
+  idle+=dorm.idle;total+=dorm.total;
+  const section=element('section','min-w-0'),heading=element('div','flex items-baseline justify-between border-b border-gray-300 pb-4');
+  heading.append(element('h2','text-xl font-semibold',dorm.dorm+'舍'),element('span','text-sm text-emerald-800',`空闲 ${dorm.idle} / ${dorm.total}`));section.append(heading);
+  const rooms=element('div','rooms');
+  for(const room of dorm.rooms){
+   const row=element('div','py-4'),line=element('div','flex items-center justify-between gap-3');
+   line.append(element('span','text-sm font-medium break-words',room.name),element('span',`text-sm shrink-0 ${room.idle?'text-emerald-800':'text-gray-400'}`,`${room.idle} / ${room.total}`));
+   const meter=element('div','meter'),fill=element('span','');fill.style.width=(room.total?room.idle/room.total*100:0)+'%';meter.append(fill);row.append(line,meter);rooms.append(row);
+  }
+  if(!dorm.rooms.length)rooms.append(element('p','py-5 text-sm text-gray-400','暂无设备'));
+  section.append(rooms);grid.append(section);
+ }
+ document.querySelector('#total').textContent=`空闲 ${idle} 台 · 非空闲 ${total-idle} 台 · 共 ${total} 台`;
+ document.querySelector('#time').textContent='更新于 '+new Date(data.updated).toLocaleTimeString('zh-CN',{hour12:false});
+}
+async function refresh(){
+ if(loading)return;loading=true;button.disabled=true;error.hidden=true;
+ try{const response=await fetch('/api/status',{signal:AbortSignal.timeout(25000),cache:'no-store'});if(!response.ok)throw Error();render(await response.json())}
+ catch{error.textContent='刷新失败，保留上次结果。请稍后重试。';error.hidden=false; if(!grid.children.length)document.querySelector('#time').textContent='尚未获取状态'}
+ finally{loading=false;button.disabled=false}
+}
+if(window.lucide)lucide.createIcons();button.addEventListener('click',refresh);refresh();setInterval(refresh,60000);
+</script>
+</body>
+</html>
