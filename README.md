@@ -6,7 +6,7 @@
 
 如果机器已满，会显示最短等待时间
 
-![a85af443-b6ce-4431-a35a-3946e45b7e9a.png](https://files.seeusercontent.com/2026/09/06/yLw3/a85af443-b6ce-4431-a35a-3946e45b.png)
+![4613ccc4cd564da90e866461dceffbcf.png](https://files.seeusercontent.com/2026/09/07/q2So/4613ccc4cd564da90e866461dceffbcf.png)
 ## 运行
 
 需要 Python 3.11+ 和 [uv](https://docs.astral.sh/uv/)。在项目目录运行：
