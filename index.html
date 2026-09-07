@@ -29,7 +29,7 @@ const grid=document.querySelector('#grid'),button=document.querySelector('#refre
 let loading=false;
 function element(tag,classes,text){const node=document.createElement(tag);node.className=classes;if(text!==undefined)node.textContent=text;return node}
 const CACHE_KEY='ujing-status-cache';
-function loadCache(){try{const data=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');return data&&Array.isArray(data.dorms)?data:null}catch{return null}}
+function loadCache(){try{const data=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');return data&&Array.isArray(data.dorms)&&(Date.now()-(data._cachedAt||0)<60000)?data:null}catch{return null}}
 function saveCache(data){try{localStorage.setItem(CACHE_KEY,JSON.stringify({...data,_cachedAt:Date.now()}))}catch{}}
 function render(data){
  grid.replaceChildren();
@@ -72,6 +72,7 @@ button.addEventListener('click',()=>refresh(true));
 const cached=loadCache();
 if(cached)render(cached);else refresh();
 refreshAtNextMinute();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!loadCache())refresh()});
 </script>
 </body>
 </html>
