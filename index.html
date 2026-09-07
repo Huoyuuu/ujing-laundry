@@ -17,12 +17,20 @@
 </header>
 <div class="flex flex-wrap justify-between items-center gap-3 py-6"><div id="total" class="text-sm text-gray-600">3 / 4 / 5 / 6 舍</div><div class="flex gap-4 text-xs text-gray-500"><span><span class="inline-block w-2 h-2 bg-emerald-700 mr-1.5"></span>空闲</span><span><span class="inline-block w-2 h-2 bg-gray-300 mr-1.5"></span>非空闲</span></div></div>
 <p id="error" role="alert" class="error text-sm mb-5" hidden></p>
-<div id="grid"></div>
+<div id="grid" aria-live="polite">
+ <section class="min-w-0" aria-label="加载中"><div class="flex items-baseline justify-between border-b border-gray-300 pb-4"><span class="block h-7 w-14 bg-gray-200 animate-pulse"></span><span class="block h-4 w-24 bg-gray-200 animate-pulse"></span></div><div class="rooms"><div class="py-4"><span class="block h-4 w-3/4 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div><div class="py-4"><span class="block h-4 w-2/3 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div></div></section>
+ <section class="min-w-0" aria-label="加载中"><div class="flex items-baseline justify-between border-b border-gray-300 pb-4"><span class="block h-7 w-14 bg-gray-200 animate-pulse"></span><span class="block h-4 w-24 bg-gray-200 animate-pulse"></span></div><div class="rooms"><div class="py-4"><span class="block h-4 w-3/4 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div><div class="py-4"><span class="block h-4 w-2/3 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div></div></section>
+ <section class="min-w-0" aria-label="加载中"><div class="flex items-baseline justify-between border-b border-gray-300 pb-4"><span class="block h-7 w-14 bg-gray-200 animate-pulse"></span><span class="block h-4 w-24 bg-gray-200 animate-pulse"></span></div><div class="rooms"><div class="py-4"><span class="block h-4 w-3/4 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div><div class="py-4"><span class="block h-4 w-2/3 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div></div></section>
+ <section class="min-w-0" aria-label="加载中"><div class="flex items-baseline justify-between border-b border-gray-300 pb-4"><span class="block h-7 w-14 bg-gray-200 animate-pulse"></span><span class="block h-4 w-24 bg-gray-200 animate-pulse"></span></div><div class="rooms"><div class="py-4"><span class="block h-4 w-3/4 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div><div class="py-4"><span class="block h-4 w-2/3 bg-gray-200 animate-pulse"></span><span class="block h-1 w-full mt-4 bg-gray-200 animate-pulse"></span></div></div></section>
+</div>
 </main>
 <script>
 const grid=document.querySelector('#grid'),button=document.querySelector('#refresh'),error=document.querySelector('#error');
 let loading=false;
 function element(tag,classes,text){const node=document.createElement(tag);node.className=classes;if(text!==undefined)node.textContent=text;return node}
+const CACHE_KEY='ujing-status-cache';
+function loadCache(){try{const data=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');return data&&Array.isArray(data.dorms)?data:null}catch{return null}}
+function saveCache(data){try{localStorage.setItem(CACHE_KEY,JSON.stringify({...data,_cachedAt:Date.now()}))}catch{}}
 function render(data){
  grid.replaceChildren();
  let idle=0,total=0;
@@ -34,7 +42,14 @@ function render(data){
   for(const room of dorm.rooms){
    const row=element('div','py-4'),line=element('div','flex items-center justify-between gap-3');
    line.append(element('span','text-sm font-medium break-words',room.name),element('span',`text-sm shrink-0 ${room.idle?'text-emerald-800':'text-gray-400'}`,`${room.idle} / ${room.total}`));
-   const meter=element('div','meter'),fill=element('span','');fill.style.width=(room.total?room.idle/room.total*100:0)+'%';meter.append(fill);row.append(line,meter);rooms.append(row);
+   const meter=element('div','meter'),fill=element('span','');fill.style.width=(room.total?room.idle/room.total*100:0)+'%';meter.append(fill);row.append(line,meter);
+   for(const machine of room.machines||[]){
+    const detail=element('div','mt-2 flex items-center justify-between gap-3 text-xs text-gray-500');
+    const wait=Number(machine.wait_minutes);
+    const label=machine.idle?'':wait>0?`最短等待 ${wait} 分钟`:'剩余时间未知';
+    detail.append(element('span','truncate',label),element('span','shrink-0',`空闲 ${machine.idle} / ${machine.total}`));row.append(detail);
+   }
+   rooms.append(row);
   }
   if(!dorm.rooms.length)rooms.append(element('p','py-5 text-sm text-gray-400','暂无设备'));
   section.append(rooms);grid.append(section);
@@ -42,13 +57,21 @@ function render(data){
  document.querySelector('#total').textContent=`空闲 ${idle} 台 · 非空闲 ${total-idle} 台 · 共 ${total} 台`;
  document.querySelector('#time').textContent='更新于 '+new Date(data.updated).toLocaleTimeString('zh-CN',{hour12:false});
 }
-async function refresh(){
+async function refresh(force=false){
  if(loading)return;loading=true;button.disabled=true;error.hidden=true;
- try{const response=await fetch('/api/status',{signal:AbortSignal.timeout(25000),cache:'no-store'});if(!response.ok)throw Error();render(await response.json())}
- catch{error.textContent='刷新失败，保留上次结果。请稍后重试。';error.hidden=false; if(!grid.children.length)document.querySelector('#time').textContent='尚未获取状态'}
+ try{const response=await fetch('/api/status',{signal:AbortSignal.timeout(25000),cache:'no-store'});if(!response.ok)throw Error();const data=await response.json();saveCache(data);render(data)}
+ catch{error.textContent='刷新失败，保留上次结果。请稍后重试。';error.hidden=false; if(!grid.children.length)document.querySelector('#time').textContent='尚未获取状态' }
  finally{loading=false;button.disabled=false}
 }
-if(window.lucide)lucide.createIcons();button.addEventListener('click',refresh);refresh();setInterval(refresh,60000);
+function refreshAtNextMinute(){
+ const delay=60000-new Date().getSeconds()*1000-new Date().getMilliseconds();
+ setTimeout(()=>{refresh();refreshAtNextMinute()},delay);
+}
+if(window.lucide)lucide.createIcons();
+button.addEventListener('click',()=>refresh(true));
+const cached=loadCache();
+if(cached)render(cached);else refresh();
+refreshAtNextMinute();
 </script>
 </body>
 </html>
