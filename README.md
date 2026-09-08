@@ -12,6 +12,7 @@
 需要 Python 3.11+ 和 [uv](https://docs.astral.sh/uv/)。在项目目录运行：
 
 ```bash
+uv sync
 uv run 'u净查询附近洗衣房.py'
 ```
 
